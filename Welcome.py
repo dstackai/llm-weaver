@@ -1,9 +1,12 @@
-import streamlit as st
 import webbrowser
+
+import streamlit as st
 from dstack.api import Client, ClientError
 
 st.title("Welcome to LLM Weaver! 👋")
-st.caption("This app helps deploy LLMs to the cloud and access them for inference.")
+st.caption(
+    "This app helps fine-tune and deploy LLMs via user interface and access them for inference."
+)
 
 if "welcome" not in st.session_state:
     st.session_state.client = Client.from_config()
@@ -24,4 +27,4 @@ if "welcome" not in st.session_state:
             webbrowser.open_new_tab("https://dstack.ai/docs")
         st.stop()
 
-st.info("Select **Inference**")
+st.info("Select **Fine-tuning** or **Inference**")

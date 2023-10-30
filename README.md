@@ -1,6 +1,6 @@
 # LLM Weaver
 
-This Streamlit app helps deploy LLMs to your cloud (AWS, GCP, Azure, Lambda Cloud) via user interface and access them for inference.
+This Streamlit app helps fine-tune and deploy LLMs using your cloud (AWS, GCP, Azure, Lambda Cloud) via user interface and access them for inference.
 
 ![](images/dstack-llm-weaver-inference.png)
 

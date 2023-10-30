@@ -1,4 +1,6 @@
+dstack[all]==0.12.2rc1
+streamlit
+streamlit_code_editor
 accelerate
 transformers
 huggingface_hub
-dstack[all]==0.12.1rc1
