@@ -1,8 +1,8 @@
 # LLM Weaver
 
-This Streamlit app helps fine-tune and deploy LLMs using your cloud (AWS, GCP, Azure, Lambda Cloud) via user interface and access them for inference.
+This Streamlit app helps fine-tune and deploy LLMs using your cloud (AWS, GCP, Azure, Lambda Cloud, TensorDock, etc.) via user interface and access them for inference.
 
-![](images/dstack-llm-weaver-inference.png)
+![](images/dstack-llm-weaver-fine-tuning.png)
 
 To run workloads in the cloud, the app uses [`dstack`](https://github.com/dstackai/dstack).
 For inference, workloads use [`text-generation-inference`](https://github.com/huggingface/text-generation-inference).

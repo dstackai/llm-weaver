@@ -215,10 +215,7 @@ if st.session_state.deploying:
             key="cancel_starting",
             on_click=undeploy_on_click,
         )
-        try:
-            st.session_state.run.attach()
-        except PortUsedError:
-            pass
+        st.session_state.run.attach()
         while True:
             time.sleep(0.5)
             try:
