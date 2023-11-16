@@ -5,12 +5,13 @@ from code_editor import code_editor
 from dstack.api import GPU, Client, Resources
 from dstack.api.huggingface import SFTFineTuningTask
 
-from utils import get_model, get_total_memory, validate
+from utils import validate
 
 st.title("Fine-tuning")
 st.caption("This app allows to fine-tune any LLM using a given dataset.")
 
 run_name = "llm-weaver-fine-tuning"
+
 
 if "fine_tuning" not in st.session_state:
     st.session_state.fine_tuning = False
@@ -135,7 +136,6 @@ with st.sidebar:
 
     hf_token = st.text_input(
         "Hugging Face API token",
-        st.session_state.hf_token,
         type="password",
         key="hf_token",
         placeholder="Required",
@@ -225,7 +225,22 @@ if not st.session_state.fine_tuning:
     )
 
     with placeholder.expander("Parameters"):
-        code_editor(st.session_state.parameters, lang="json", key="parameters")
+        code_editor(
+            st.session_state.parameters,
+            lang="json",
+            key="parameters_editor",
+            buttons=[
+                {
+                    "name": "apply",
+                    "feather": "RefreshCw",
+                    "primary": True,
+                    "hasText": True,
+                    "showWithIcon": True,
+                    "commands": ["submit"],
+                    "style": {"bottom": "0.1rem", "right": "0.5rem"},
+                }
+            ],
+        )
         st.caption(
             "Learn more <a href='https://dstack.ai/docs/reference/api/python/#dstack.api.FineTuningTask'>here</a>.",
             unsafe_allow_html=True,
@@ -249,7 +264,11 @@ if st.session_state.fine_tuning:
         log_area = st.empty()
     status.update(state="running")
     if not st.session_state.run:
-        params = json.loads(st.session_state.parameters)
+        params = json.loads(
+            st.session_state.parameters_editor["text"]
+            if st.session_state.parameters_editor
+            else st.session_state.parameters
+        )
         env = {
             "HUGGING_FACE_HUB_TOKEN": st.session_state.hf_token,
         }
