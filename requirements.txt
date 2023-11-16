@@ -1,4 +1,4 @@
-dstack[all]==0.12.2rc1
+dstack[all]==0.12.3rc3
 streamlit
 streamlit_code_editor
 accelerate

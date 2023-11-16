@@ -1,50 +1,42 @@
 import time
-from typing import Optional
 
 import requests
 import streamlit as st
-from dstack.api import GPU, Client, ClientError, PortUsedError, Resources, Task
+from dstack.api import GPU, Client, ClientError, Resources, CompletionTask
 
 from utils import get_model, get_total_memory
 
 st.title("Inference")
-st.caption(
-    "This app allows to deploy any LLM via user interface and access it for inference."
-)
+st.caption("This app allows to deploy any LLM access it for inference.")
 
 run_name = "llm-weaver-inference"
 
 if "deploying" not in st.session_state:
     st.session_state.deploying = False
     st.session_state.deployed = False
-    st.session_state.client = Client.from_config()
     st.session_state.run = None
+    st.session_state.dstack_api_base = None
+    st.session_state.dstack_api_token = None
+    st.session_state.dstack_project = None
+    st.session_state.client = None
+    try:
+        client = Client.from_config()
+        st.session_state.dstack_api_base = client._client._base_url
+        st.session_state.dstack_api_token = client._client._token
+        st.session_state.dstack_project = client.project
+        client.backends.list()
+        run = client.runs.get(run_name)
+        if run and not run.status.is_finished():
+            st.session_state.run = run
+            st.session_state.deploying = True
+        st.session_state.client = client
+    except:
+        pass
     st.session_state.error = None
     st.session_state.model_id = None
     st.session_state.hf_token = None
     st.session_state.estimated_gpu_memory = None
     st.session_state.quantize = None
-    try:
-        with st.spinner("Connecting to `dstack`..."):
-            backend_options = ["No preference"]
-            for backend in st.session_state.client.backends.list():
-                backend_options.append(backend.name)
-            st.session_state.backend_options = backend_options
-
-            run = st.session_state.client.runs.get(run_name)
-            if run and not run.status.is_finished():
-                st.session_state.run = run
-                st.session_state.deploying = True
-    except ClientError:
-        st.info("Can't connect to `dstack`")
-        st.text("Make sure the `dstack` server is up:")
-        st.code(
-            """
-                dstack server
-            """,
-            language="shell",
-        )
-        st.stop()
 
 
 def deploy_on_click():
@@ -60,20 +52,19 @@ def undeploy_on_click():
 
 
 def get_configuration():
-    args = ""
+    quantize = None
+    dtype = None
     if st.session_state.quantize == "GPTQ":
-        args = f"--quantize gptq"
+        quantize = "gptq"
     elif st.session_state.quantize == "AWQ":
-        args = f"--quantize awq"
+        quantize = "awq"
     else:
-        args = "--dtype float16"
-    return Task(
-        image="ghcr.io/huggingface/text-generation-inference:latest",
-        env={"MODEL_ID": st.session_state.model_id},
-        commands=[
-            f"text-generation-launcher --trust-remote-code {args}",
-        ],
-        ports=["8080:80"],
+        dtype = "float16"
+    return CompletionTask(
+        model_name=st.session_state.model_id,
+        quantize=quantize,
+        dtype=dtype,
+        local_port=8080,
     )
 
 
@@ -137,7 +128,66 @@ if not st.session_state.deploying and not st.session_state.deployed:
     )
 
 with st.sidebar:
-    st.selectbox(
+
+    def dstack_settings_on_change():
+        st.session_state.client = None
+
+    dstack_api_base = st.text_input(
+        "dstack API base",
+        placeholder="https://cloud.dstack.ai",
+        disabled=st.session_state.deploying or st.session_state.deployed,
+        on_change=dstack_settings_on_change,
+        key="dstack_api_base",
+    )
+
+    dstack_api_token = st.text_input(
+        "dstack API token",
+        disabled=st.session_state.deploying or st.session_state.deployed,
+        on_change=dstack_settings_on_change,
+        key="dstack_api_token",
+        type="password",
+    )
+
+    dstack_project = st.text_input(
+        "dstack project",
+        placeholder="main",
+        disabled=st.session_state.deploying or st.session_state.deployed,
+        on_change=dstack_settings_on_change,
+        key="dstack_project",
+    )
+
+    def connect_to_dstack_on_click():
+        try:
+            client = Client.from_config(
+                project_name=dstack_project,
+                server_url=dstack_api_base,
+                user_token=dstack_api_token,
+            )
+            client.backends.list()
+            run = client.runs.get(run_name)
+            if run and not run.status.is_finished():
+                st.session_state.run = run
+                st.session_state.deploying = True
+            st.session_state.client = client
+        except Exception as e:
+            st.error(str(e))
+
+    if not st.session_state.client:
+        st.button(
+            "Connect",
+            on_click=connect_to_dstack_on_click,
+            type="secondary",
+            disabled=st.session_state.client is not None,
+        )
+    else:
+        st.status("Connected", state="complete")
+
+    # st.session_state.hf_token = settings.text_input("Hugging Face API token", st.session_state.hf_token, type="password")
+
+if not st.session_state.deploying and not st.session_state.deployed:
+    _c1, _c2 = placeholder.columns(2)
+
+    _c1.selectbox(
         "Quantization",
         quantize_labels if st.session_state.model_id else ["Select a model"],
         disabled=not st.session_state.model_id
@@ -146,27 +196,13 @@ with st.sidebar:
         key="quantize",
     )
 
-    st.text_input(
-        "vRAM",
+    _c2.text_input(
+        "GPU memory",
         placeholder="Select a model",
         disabled=st.session_state.deploying or st.session_state.deployed,
         key="estimated_gpu_memory",
     )
 
-    # st.session_state.hf_token = settings.text_input("Hugging Face API token", st.session_state.hf_token, type="password")
-
-    try:
-        run_backend = st.session_state.run.backend
-    except:
-        run_backend = None
-    backend_option = st.selectbox(
-        "Cloud",
-        st.session_state.backend_options,
-        disabled=st.session_state.deploying or st.session_state.deployed,
-        index=st.session_state.backend_options.index(run_backend) if run_backend else 0,
-    )
-
-if not st.session_state.deploying and not st.session_state.deployed:
     st.button(
         "Deploy",
         on_click=deploy_on_click,
@@ -194,9 +230,6 @@ if st.session_state.deploying:
                 configuration=get_configuration(),
                 run_name=run_name,
                 resources=get_resources(),
-                backends=None
-                if backend_option == "No preference"
-                else [backend_option],
             )
             st.session_state.run = run
             status.write("Attaching...")
